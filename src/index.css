@@ -3,6 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* keep your custom classes (glass, buttons, etc.) here */
+
+
 /* Animated ambient blob backdrop */
 @layer utilities {
   .animated-blur {
