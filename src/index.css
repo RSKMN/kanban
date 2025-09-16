@@ -1,10 +1,6 @@
-/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* keep your custom classes (glass, buttons, etc.) here */
-
 
 /* Animated ambient blob backdrop */
 @layer utilities {
@@ -18,13 +14,25 @@
       radial-gradient(140px 140px at 80% 70%, rgba(6,182,212,0.25), transparent 70%);
     animation: float 18s ease-in-out infinite alternate;
   }
+
   @keyframes float {
     0% { transform: translateY(0px) scale(1); }
     100% { transform: translateY(-25px) scale(1.03); }
   }
+
+  /* Scrollbar polish */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148,163,184,0.25);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.4); }
 }
 
-/* Reusable glass styles */
+/* Reusable glass styles and components */
 @layer components {
   .glass-card {
     @apply rounded-2xl bg-white/10 backdrop-blur-xl shadow-2xl;
@@ -57,17 +65,4 @@
   .badge-green { @apply text-[10px] px-2 py-1 rounded-full border bg-emerald-500/15 text-emerald-200 border-emerald-400/30; }
   .badge-amber { @apply text-[10px] px-2 py-1 rounded-full border bg-amber-500/15 text-amber-200 border-amber-400/30; }
   .badge-sky   { @apply text-[10px] px-2 py-1 rounded-full border bg-sky-500/15 text-sky-200 border-sky-400/30; }
-}
-
-/* Scrollbar polish */
-@layer utilities {
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb {
-    background: rgba(148,163,184,0.25);
-    border-radius: 9999px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-  }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.4); }
 }
