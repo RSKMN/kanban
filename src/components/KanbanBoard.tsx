@@ -1,37 +1,49 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import TaskModal from "./TaskModal";
 import {
   DragDropContext,
   Droppable,
   Draggable,
-  DropResult,
+  type DropResult,
+  type DraggableProvided,
+  type DroppableProvided,
 } from "@hello-pangea/dnd";
 
+type Task = {
+  id: string;
+  title: string;
+  description?: string;
+  priority?: "Low" | "Medium" | "High";
+  status: "todo" | "in_progress" | "done";
+};
+
 export default function KanbanBoard() {
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   useEffect(() => {
     fetchTasks();
-
     const channel = supabase
       .channel("tasks-channel")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, (payload) => {
-        if (payload.eventType === "INSERT") {
-          setTasks((prev) => [...prev, payload.new]);
-        }
-        if (payload.eventType === "UPDATE") {
-          setTasks((prev) => prev.map((t) => (t.id === payload.new.id ? payload.new : t)));
-        }
-        if (payload.eventType === "DELETE") {
-          setTasks((prev) => prev.filter((t) => t.id !== payload.old.id));
-        }
-      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tasks" },
+        (payload: any) => {
+          if (payload.eventType === "INSERT") {
+            setTasks((prev) => [...prev, payload.new as Task]);
+          } else if (payload.eventType === "UPDATE") {
+            setTasks((prev) =>
+              prev.map((t) => (t.id === payload.new.id ? (payload.new as Task) : t)),
+            );
+          } else if (payload.eventType === "DELETE") {
+            setTasks((prev) => prev.filter((t) => t.id !== payload.old.id));
+          }
+        },
+      )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -40,43 +52,39 @@ export default function KanbanBoard() {
   async function fetchTasks() {
     setLoading(true);
     const { data, error } = await supabase.from("tasks").select("*");
-    if (!error && data) setTasks(data);
+    if (!error && data) setTasks(data as Task[]);
     setLoading(false);
   }
 
-  const columns = {
-    todo: tasks.filter((t) => t.status === "todo"),
-    in_progress: tasks.filter((t) => t.status === "in_progress"),
-    done: tasks.filter((t) => t.status === "done"),
-  };
+  const columns = useMemo(
+    () => ({
+      todo: tasks.filter((t) => t.status === "todo"),
+      in_progress: tasks.filter((t) => t.status === "in_progress"),
+      done: tasks.filter((t) => t.status === "done"),
+    }),
+    [tasks],
+  );
 
-  // ✅ Handle drag end
   async function handleDragEnd(result: DropResult) {
     const { destination, source, draggableId } = result;
     if (!destination) return;
-
-    // If dropped in the same place, do nothing
     if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index
     ) {
       return;
     }
-
-    const newStatus = destination.droppableId;
-
-    // Update Supabase
+    const newStatus = destination.droppableId as Task["status"];
     const { error } = await supabase
       .from("tasks")
       .update({ status: newStatus })
       .eq("id", draggableId);
-
     if (error) console.error("Drag update failed:", error.message);
   }
 
   return (
-    <div>
-      <div className="flex justify-end mb-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="md:col-span-3 flex justify-end">
         <button
           onClick={() => {
             setSelectedTask(null);
@@ -89,64 +97,56 @@ export default function KanbanBoard() {
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {Object.entries(columns).map(([status, columnTasks]) => (
-            <Droppable droppableId={status} key={status}>
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className="bg-white rounded-lg shadow p-4 min-h-[300px]"
-                >
-                  <h2 className="text-lg font-semibold capitalize mb-4">
-                    {status.replace("_", " ")}
-                  </h2>
-
-                  <div className="space-y-3">
-                    {columnTasks.length === 0 ? (
-                      <p className="text-sm text-gray-500">No tasks</p>
-                    ) : (
-                      columnTasks.map((task, index) => (
-                        <Draggable
-                          key={task.id}
-                          draggableId={task.id.toString()}
-                          index={index}
+        {(["todo", "in_progress", "done"] as const).map((status) => (
+          <Droppable droppableId={status} key={status}>
+            {(provided: DroppableProvided) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className="bg-gray-50 rounded p-3 min-h-[300px]"
+              >
+                <h2 className="font-semibold mb-2 uppercase">
+                  {status.replace("_", " ")}
+                </h2>
+                {loading && <p>Loading...</p>}
+                {!loading && columns[status].length === 0 && (
+                  <p className="text-sm text-gray-500">No tasks</p>
+                )}
+                {!loading &&
+                  columns[status].map((task, index) => (
+                    <Draggable draggableId={task.id} index={index} key={task.id}>
+                      {(provided: DraggableProvided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          onClick={() => {
+                            setSelectedTask(task);
+                            setModalOpen(true);
+                          }}
+                          className="p-3 bg-yellow-100 rounded-lg shadow cursor-pointer hover:bg-yellow-200 mb-2"
                         >
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              onClick={() => {
-                                setSelectedTask(task);
-                                setModalOpen(true);
-                              }}
-                              className="p-3 bg-yellow-100 rounded-lg shadow cursor-pointer hover:bg-yellow-200"
-                            >
-                              <p className="font-medium">{task.title}</p>
-                              {task.priority && (
-                                <p className="text-xs text-gray-600">
-                                  Priority: {task.priority}
-                                </p>
-                              )}
+                          <div className="font-medium">{task.title}</div>
+                          {task.priority && (
+                            <div className="text-xs text-gray-700">
+                              Priority: {task.priority}
                             </div>
                           )}
-                        </Draggable>
-                      ))
-                    )}
-                    {provided.placeholder}
-                  </div>
-                </div>
-              )}
-            </Droppable>
-          ))}
-        </div>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        ))}
       </DragDropContext>
 
       <TaskModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        task={selectedTask}
+        task={selectedTask ?? undefined}
       />
     </div>
   );

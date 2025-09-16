@@ -1,23 +1,21 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import KanbanBoard from "./components/KanbanBoard";
 
 export default function App() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState(null as any);
 
   useEffect(() => {
-    // Check active session
+    // get current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
-
-    // Listen for login/logout
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    // subscribe to auth changes
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-
     return () => {
-      listener.subscription.unsubscribe();
+      subscription.subscription.unsubscribe();
     };
   }, []);
 
@@ -30,33 +28,30 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="flex items-center justify-between px-6 py-4 bg-white shadow">
-        <h1 className="text-2xl font-bold text-indigo-600">Kanban App</h1>
-
-        {user ? (
-          <div className="flex items-center gap-4">
-            <p className="text-gray-700">{user.email}</p>
-            <button
-              onClick={signOut}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-            >
-              Sign Out
-            </button>
-          </div>
-        ) : (
+    <div className="p-4">
+      {!user ? (
+        <div className="flex flex-col items-center gap-4">
+          <p>Please sign in to view your tasks.</p>
           <button
             onClick={signInWithGoogle}
-            className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
+            className="px-4 py-2 bg-blue-600 text-white rounded"
           >
             Sign in with Google
           </button>
-        )}
-      </header>
-
-      <main className="p-6">
-        {user ? <KanbanBoard /> : <p className="text-gray-600">Please sign in to view your tasks.</p>}
-      </main>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-end">
+            <button
+              onClick={signOut}
+              className="px-4 py-2 bg-gray-200 rounded"
+            >
+              Sign out
+            </button>
+          </div>
+          <KanbanBoard />
+        </div>
+      )}
     </div>
   );
 }
