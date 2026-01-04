@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import KanbanBoard from "./components/KanbanBoard";
 import Callback from "./auth/Callback";
-import "./index.css";
+import "./index.css
 
 type User = {
   id: string;
@@ -17,7 +17,7 @@ const getBaseUrl = () => {
   let url =
     import.meta.env.VITE_SITE_URL ||
     import.meta.env.VITE_VERCEL_URL ||
-    "http://localhost:5173";
+    "http://localho5173";
   if (!url.startsWith("http")) url = `https://${url}`;
   return url.replace(/\/+$/, "");
 };
@@ -125,7 +125,7 @@ export default function App() {
                   }}
                 >
                   Explore Features
-                </a>
+                </a
               </div>
 
               <div className="mt-10 grid sm:grid-cols-3 gap-4">
